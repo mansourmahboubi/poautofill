@@ -18,40 +18,29 @@ class DeeplError(RuntimeError):
         super().__init__()
 
 
-def deepl(english_sentence, target_lang="FR"):
-    """Query deepl via their jsonrpc to translate the given
+def deepl(english_sentence, auth_key, target_lang="FR"):
+    """Query deepl via their free api to translate the given
     english_sentence to the given target language.
 
     May return an empty string on failure.
     """
     response = requests.post(
-        "https://www2.deepl.com/jsonrpc",
-        json={
-            "jsonrpc": "2.0",
-            "method": "LMT_handle_jobs",
-            "params": {
-                "jobs": [{"kind": "default", "raw_en_sentence": english_sentence}],
-                "lang": {
-                    "user_preferred_langs": ["EN"],
-                    "source_lang_user_selected": "EN",
-                    "target_lang": target_lang,
-                },
-                "priority": -1,
-            },
-            "id": 36,
+        "https://api-free.deepl.com/v2/translate",
+        data={
+            "auth_key": auth_key,
+            "text": english_sentence,
+            "target_lang": target_lang
         },
-    ).json()
-    if response.get("error"):
-        raise DeeplError(response["error"]["message"])
+    )
+    if response.status_code != 200:
+        raise DeeplError(response.reason)
     try:
-        return response["result"]["translations"][0]["beams"][0][
-            "postprocessed_sentence"
-        ]
+        return response.json()["translations"][0]["text"]
     except (IndexError, KeyError):
         return ""
 
 
-def fill_po(po_file, verbose, target_lang):
+def fill_po(po_file, verbose, auth_key, target_lang):
     """Fill given po file with deepl translations.
     """
     entries = polib.pofile(po_file)
@@ -61,7 +50,7 @@ def fill_po(po_file, verbose, target_lang):
             for entry in pbar:
                 if entry.msgstr:
                     continue
-                entry.msgstr = deepl(entry.msgid, target_lang)
+                entry.msgstr = deepl(entry.msgid, auth_key, target_lang)
                 entry.flags.append("fuzzy")
                 time.sleep(1)  # Hey deepl.com, hope it's nice enough, love your work!
     except DeeplError as err:
@@ -75,12 +64,13 @@ def fill_po(po_file, verbose, target_lang):
 @click.option(
     "--verbose", "-v", is_flag=True, default=False, help="display progress bar"
 )
+@click.option("--auth-key", "-a", default=None, help="deepl authentication key")
 @click.option("--target-lang", "-t", default="FR", help="target language")
-def fill_pos(po_files, verbose, target_lang):
+def fill_pos(po_files, verbose, auth_key, target_lang):
     """Fill given po files with deepl translations.
     """
     for po_file in po_files:
-        fill_po(po_file, verbose, target_lang)
+        fill_po(po_file, verbose, auth_key, target_lang)
 
 
 if __name__ == "__main__":
