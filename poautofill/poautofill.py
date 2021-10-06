@@ -40,7 +40,7 @@ def deepl(english_sentence, auth_key, target_lang="FR"):
         return ""
 
 
-def fill_po(po_file, verbose, auth_key, target_lang):
+def fill_po(po_file, verbose, auth_key, fuzzy, target_lang):
     """Fill given po file with deepl translations.
     """
     entries = polib.pofile(po_file)
@@ -51,7 +51,8 @@ def fill_po(po_file, verbose, auth_key, target_lang):
                 if entry.msgstr:
                     continue
                 entry.msgstr = deepl(entry.msgid, auth_key, target_lang)
-                entry.flags.append("fuzzy")
+                if(fuzzy):
+                    entry.flags.append("fuzzy")
                 time.sleep(1)  # Hey deepl.com, hope it's nice enough, love your work!
     except DeeplError as err:
         print("Deepl Error:", err.message, file=sys.stderr)
@@ -65,12 +66,13 @@ def fill_po(po_file, verbose, auth_key, target_lang):
     "--verbose", "-v", is_flag=True, default=False, help="display progress bar"
 )
 @click.option("--auth-key", "-a", default=None, help="deepl authentication key")
+@click.option("--fuzzy", "-f", is_flag=True, default=True, help="append fuzzy for new words")
 @click.option("--target-lang", "-t", default="FR", help="target language")
-def fill_pos(po_files, verbose, auth_key, target_lang):
+def fill_pos(po_files, verbose, auth_key, fuzzy, target_lang):
     """Fill given po files with deepl translations.
     """
     for po_file in po_files:
-        fill_po(po_file, verbose, auth_key, target_lang)
+        fill_po(po_file, verbose, auth_key, fuzzy, target_lang)
 
 
 if __name__ == "__main__":
